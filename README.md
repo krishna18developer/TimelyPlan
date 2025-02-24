@@ -29,7 +29,7 @@ TimelyPlan is a Java-based application designed to help educational institutions
 
 ## System Requirements
 
-- Java Development Kit (JDK) 11 or later
+- Java Development Kit (JDK) 21 or later
 - Maven 3.6 or later
 
 ## Building the Application
@@ -50,7 +50,7 @@ TimelyPlan is a Java-based application designed to help educational institutions
 After building, run the application using:
 
 ```bash
-java -jar target/timelyplan-1.0-SNAPSHOT.jar
+java --module-path $PATH_TO_FX --add-modules javafx.controls,javafx.fxml -jar target/timelyplan-1.0-SNAPSHOT.jar
 ```
 
 ## Usage Guide
@@ -78,11 +78,3 @@ java -jar target/timelyplan-1.0-SNAPSHOT.jar
    - Select a section from the dropdown
    - Click "Generate Timetable"
    - Export to Excel or PDF using the File menu
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
