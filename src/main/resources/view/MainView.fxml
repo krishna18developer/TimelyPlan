@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.timelyplan.controller.MainController"
+      spacing="10">
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
+
+    <MenuBar>
+        <Menu text="File">
+            <MenuItem text="Export to Excel" onAction="#exportToExcel"/>
+            <MenuItem text="Export to PDF" onAction="#exportToPDF"/>
+            <SeparatorMenuItem/>
+            <MenuItem text="Exit" onAction="#exit"/>
+        </Menu>
+    </MenuBar>
+
+    <TabPane VBox.vgrow="ALWAYS">
+        <Tab text="Courses" closable="false">
+            <VBox spacing="10">
+                <padding>
+                    <Insets top="10" right="10" bottom="10" left="10"/>
+                </padding>
+                <HBox spacing="10">
+                    <TextField fx:id="courseIdField" promptText="Course ID"/>
+                    <TextField fx:id="courseNameField" promptText="Course Name"/>
+                    <TextField fx:id="weeklyHoursField" promptText="Weekly Hours"/>
+                    <CheckBox fx:id="requiresLabCheckBox" text="Requires Lab"/>
+                    <Button text="Add Course" onAction="#addCourse"/>
+                </HBox>
+                <TableView fx:id="coursesTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn text="ID" fx:id="courseIdColumn"/>
+                        <TableColumn text="Name" fx:id="courseNameColumn"/>
+                        <TableColumn text="Hours" fx:id="weeklyHoursColumn"/>
+                        <TableColumn text="Lab" fx:id="requiresLabColumn"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </Tab>
+
+        <Tab text="Instructors" closable="false">
+            <VBox spacing="10">
+                <padding>
+                    <Insets top="10" right="10" bottom="10" left="10"/>
+                </padding>
+                <HBox spacing="10">
+                    <TextField fx:id="instructorIdField" promptText="Instructor ID"/>
+                    <TextField fx:id="instructorNameField" promptText="Name"/>
+                    <TextField fx:id="maxWeeklyHoursField" promptText="Max Weekly Hours"/>
+                    <Button text="Add Instructor" onAction="#addInstructor"/>
+                </HBox>
+                <TableView fx:id="instructorsTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn text="ID" fx:id="instructorIdColumn"/>
+                        <TableColumn text="Name" fx:id="instructorNameColumn"/>
+                        <TableColumn text="Max Hours" fx:id="maxWeeklyHoursColumn"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </Tab>
+
+        <Tab text="Sections" closable="false">
+            <VBox spacing="10">
+                <padding>
+                    <Insets top="10" right="10" bottom="10" left="10"/>
+                </padding>
+                <HBox spacing="10">
+                    <TextField fx:id="sectionIdField" promptText="Section ID"/>
+                    <TextField fx:id="sectionNameField" promptText="Name"/>
+                    <ComboBox fx:id="yearComboBox" promptText="Year"/>
+                    <CheckBox fx:id="halfDaySaturdayCheckBox" text="Half Day Saturday"/>
+                    <Button text="Add Section" onAction="#addSection"/>
+                </HBox>
+                <TableView fx:id="sectionsTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn text="ID" fx:id="sectionIdColumn"/>
+                        <TableColumn text="Name" fx:id="sectionNameColumn"/>
+                        <TableColumn text="Year" fx:id="yearColumn"/>
+                        <TableColumn text="Half Day" fx:id="halfDayColumn"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </Tab>
+
+        <Tab text="Timetable" closable="false">
+            <VBox spacing="10">
+                <padding>
+                    <Insets top="10" right="10" bottom="10" left="10"/>
+                </padding>
+                <HBox spacing="10">
+                    <ComboBox fx:id="sectionComboBox" promptText="Select Section"/>
+                    <Button text="Generate Timetable" onAction="#generateTimetable"/>
+                </HBox>
+                <TableView fx:id="timetableTable" VBox.vgrow="ALWAYS">
+                    <!-- Columns will be added dynamically -->
+                </TableView>
+            </VBox>
+        </Tab>
+    </TabPane>
+</VBox> 
