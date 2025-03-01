@@ -2,6 +2,7 @@ package com.timelyplan.models;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.*;
 
 public class Subject {
     private String id;
@@ -10,9 +11,12 @@ public class Subject {
     private boolean isLab;
     private int duration; // Duration in minutes
     private String requiredRoomType; // "CLASSROOM" or "LAB"
+    private Set<String> eligibleInstructors; // Set of Instructor IDs who can teach this subject
 
     // No-args constructor for Jackson
-    public Subject() {}
+    public Subject() {
+        this.eligibleInstructors = new HashSet<>();
+    }
 
     @JsonCreator
     public Subject(
@@ -27,6 +31,7 @@ public class Subject {
         this.isLab = isLab;
         this.duration = duration;
         this.requiredRoomType = isLab ? "LAB" : "CLASSROOM";
+        this.eligibleInstructors = new HashSet<>();
     }
 
     @JsonProperty("id")
@@ -66,8 +71,43 @@ public class Subject {
         return requiredRoomType;
     }
 
+    @JsonProperty("eligibleInstructors")
+    public Set<String> getEligibleInstructors() {
+        return new HashSet<>(eligibleInstructors);
+    }
+
+    @JsonProperty("eligibleInstructors")
+    public void setEligibleInstructors(Set<String> instructors) {
+        this.eligibleInstructors = new HashSet<>(instructors);
+    }
+
+    public void addEligibleInstructor(String instructorId) {
+        this.eligibleInstructors.add(instructorId);
+    }
+
+    public void removeEligibleInstructor(String instructorId) {
+        this.eligibleInstructors.remove(instructorId);
+    }
+
+    public boolean isInstructorEligible(String instructorId) {
+        return this.eligibleInstructors.contains(instructorId);
+    }
+
     @Override
     public String toString() {
         return name + (isLab ? " (Lab)" : "");
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Subject)) return false;
+        Subject other = (Subject) obj;
+        return id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
     }
 } 

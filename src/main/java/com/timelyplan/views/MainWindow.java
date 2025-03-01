@@ -23,6 +23,8 @@ public class MainWindow extends JFrame {
     private List<Subject> subjects;
     private List<TimeSlot> timeSlots;
     private DefaultListModel<String> roomsListModel;
+    private List<CourseClass> classes;
+    private ClassPanel classPanel;
 
     public MainWindow() {
         super("TimelyPlan - College Timetable Generator");
@@ -53,6 +55,7 @@ public class MainWindow extends JFrame {
             roomsListModel.addElement(room);
             generator.addRoom(room);
         });
+        classes = DataManager.loadClasses();
     }
 
     private void saveData() {
@@ -64,6 +67,7 @@ public class MainWindow extends JFrame {
             rooms.add(roomsListModel.get(i));
         }
         DataManager.saveRooms(rooms);
+        DataManager.saveClasses(classPanel.getClasses());
     }
 
     private void initializeComponents() {
@@ -75,6 +79,8 @@ public class MainWindow extends JFrame {
         tabbedPane.addTab("Subjects", createStyledPanel(createSubjectsPanel()));
         tabbedPane.addTab("Time Slots", createStyledPanel(createTimeSlotsPanel()));
         tabbedPane.addTab("Rooms", createStyledPanel(createRoomsPanel()));
+        classPanel = new ClassPanel(classes, subjects, instructors);
+        tabbedPane.addTab("Classes", createStyledPanel(classPanel));
         tabbedPane.addTab("Generate", createStyledPanel(createGeneratePanel()));
         
         add(tabbedPane);

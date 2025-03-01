@@ -16,6 +16,7 @@ public class DataManager {
     private static final String SUBJECTS_FILE = "subjects.json";
     private static final String TIMESLOTS_FILE = "timeslots.json";
     private static final String ROOMS_FILE = "rooms.json";
+    private static final String CLASSES_FILE = "classes.json";
     private static final ObjectMapper mapper;
 
     static {
@@ -114,6 +115,27 @@ public class DataManager {
             return rooms;
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error loading rooms", e);
+            return new ArrayList<>();
+        }
+    }
+
+    public static void saveClasses(List<CourseClass> classes) {
+        try {
+            saveToFile(new File(DATA_DIR, CLASSES_FILE), classes);
+            LOGGER.info("Successfully saved " + classes.size() + " classes");
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error saving classes", e);
+        }
+    }
+
+    public static List<CourseClass> loadClasses() {
+        try {
+            List<CourseClass> classes = loadFromFile(new File(DATA_DIR, CLASSES_FILE),
+                mapper.getTypeFactory().constructCollectionType(List.class, CourseClass.class));
+            LOGGER.info("Successfully loaded " + classes.size() + " classes");
+            return classes;
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error loading classes", e);
             return new ArrayList<>();
         }
     }
