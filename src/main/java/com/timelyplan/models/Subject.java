@@ -1,5 +1,8 @@
 package com.timelyplan.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class Subject {
     private String id;
     private String name;
@@ -8,7 +11,16 @@ public class Subject {
     private int duration; // Duration in minutes
     private String requiredRoomType; // "CLASSROOM" or "LAB"
 
-    public Subject(String id, String name, int weeklyHours, boolean isLab, int duration) {
+    // No-args constructor for Jackson
+    public Subject() {}
+
+    @JsonCreator
+    public Subject(
+        @JsonProperty("id") String id,
+        @JsonProperty("name") String name,
+        @JsonProperty("weeklyHours") int weeklyHours,
+        @JsonProperty("isLab") boolean isLab,
+        @JsonProperty("duration") int duration) {
         this.id = id;
         this.name = name;
         this.weeklyHours = weeklyHours;
@@ -17,14 +29,17 @@ public class Subject {
         this.requiredRoomType = isLab ? "LAB" : "CLASSROOM";
     }
 
+    @JsonProperty("id")
     public String getId() {
         return id;
     }
 
+    @JsonProperty("name")
     public String getName() {
         return name;
     }
 
+    @JsonProperty("weeklyHours")
     public int getWeeklyHours() {
         return weeklyHours;
     }
@@ -33,10 +48,12 @@ public class Subject {
         this.weeklyHours = weeklyHours;
     }
 
+    @JsonProperty("isLab")
     public boolean isLab() {
         return isLab;
     }
 
+    @JsonProperty("duration")
     public int getDuration() {
         return duration;
     }

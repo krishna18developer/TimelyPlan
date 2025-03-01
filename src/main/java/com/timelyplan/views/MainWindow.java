@@ -2,6 +2,7 @@ package com.timelyplan.views;
 
 import com.timelyplan.controllers.TimetableGenerator;
 import com.timelyplan.models.*;
+import com.timelyplan.utils.DataManager;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -30,32 +31,75 @@ public class MainWindow extends JFrame {
         setLocationRelativeTo(null);
 
         generator = new TimetableGenerator();
-        instructors = new ArrayList<>();
-        subjects = new ArrayList<>();
-        timeSlots = new ArrayList<>();
-        roomsListModel = new DefaultListModel<>();
-
+        loadData();
         initializeComponents();
+        
+        // Save data when closing the application
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                saveData();
+            }
+        });
+    }
+
+    private void loadData() {
+        instructors = DataManager.loadInstructors();
+        subjects = DataManager.loadSubjects();
+        timeSlots = DataManager.loadTimeSlots();
+        roomsListModel = new DefaultListModel<>();
+        List<String> rooms = DataManager.loadRooms();
+        rooms.forEach(room -> {
+            roomsListModel.addElement(room);
+            generator.addRoom(room);
+        });
+    }
+
+    private void saveData() {
+        DataManager.saveInstructors(instructors);
+        DataManager.saveSubjects(subjects);
+        DataManager.saveTimeSlots(timeSlots);
+        List<String> rooms = new ArrayList<>();
+        for (int i = 0; i < roomsListModel.size(); i++) {
+            rooms.add(roomsListModel.get(i));
+        }
+        DataManager.saveRooms(rooms);
     }
 
     private void initializeComponents() {
         tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(new Font("Arial", Font.PLAIN, 14));
         
-        // Create tabs
-        tabbedPane.addTab("Instructors", createInstructorsPanel());
-        tabbedPane.addTab("Subjects", createSubjectsPanel());
-        tabbedPane.addTab("Time Slots", createTimeSlotsPanel());
-        tabbedPane.addTab("Rooms", createRoomsPanel());
-        tabbedPane.addTab("Generate", createGeneratePanel());
+        // Create tabs with improved styling
+        tabbedPane.addTab("Instructors", createStyledPanel(createInstructorsPanel()));
+        tabbedPane.addTab("Subjects", createStyledPanel(createSubjectsPanel()));
+        tabbedPane.addTab("Time Slots", createStyledPanel(createTimeSlotsPanel()));
+        tabbedPane.addTab("Rooms", createStyledPanel(createRoomsPanel()));
+        tabbedPane.addTab("Generate", createStyledPanel(createGeneratePanel()));
         
         add(tabbedPane);
     }
 
+    private JPanel createStyledPanel(JPanel content) {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panel.add(content, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JButton createStyledButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Arial", Font.PLAIN, 12));
+        button.setFocusPainted(false);
+        return button;
+    }
+
     private JPanel createInstructorsPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
         
         // Form panel
         JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBorder(BorderFactory.createTitledBorder("Add Instructor"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         
@@ -72,14 +116,26 @@ public class MainWindow extends JFrame {
         gbc.gridx = 1;
         formPanel.add(hoursSpinner, gbc);
         
-        JButton addButton = new JButton("Add Instructor");
+        JButton addButton = createStyledButton("Add Instructor");
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
         formPanel.add(addButton, gbc);
         
         // List panel
         DefaultListModel<String> listModel = new DefaultListModel<>();
         JList<String> instructorList = new JList<>(listModel);
+        instructorList.setFont(new Font("Arial", Font.PLAIN, 12));
         JScrollPane scrollPane = new JScrollPane(instructorList);
+        
+        // Load existing instructors
+        instructors.forEach(instructor -> 
+            listModel.addElement(instructor.getName() + " (" + instructor.getMaxWeeklyHours() + " hrs/week)"));
+        
+        // Buttons panel
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton editButton = createStyledButton("Edit");
+        JButton removeButton = createStyledButton("Remove");
+        buttonsPanel.add(editButton);
+        buttonsPanel.add(removeButton);
         
         addButton.addActionListener(e -> {
             String name = nameField.getText().trim();
@@ -94,8 +150,41 @@ public class MainWindow extends JFrame {
             }
         });
         
+        editButton.addActionListener(e -> {
+            int selectedIndex = instructorList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                Instructor instructor = instructors.get(selectedIndex);
+                String name = JOptionPane.showInputDialog(this, "Enter new name:", instructor.getName());
+                if (name != null && !name.trim().isEmpty()) {
+                    int hours = instructor.getMaxWeeklyHours();
+                    try {
+                        String hoursStr = JOptionPane.showInputDialog(this, 
+                            "Enter new max weekly hours:", hours);
+                        if (hoursStr != null) {
+                            hours = Integer.parseInt(hoursStr);
+                            instructor = new Instructor(instructor.getId(), name.trim(), hours);
+                            instructors.set(selectedIndex, instructor);
+                            listModel.set(selectedIndex, name + " (" + hours + " hrs/week)");
+                        }
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(this, 
+                            "Invalid hours value", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }
+        });
+        
+        removeButton.addActionListener(e -> {
+            int selectedIndex = instructorList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                instructors.remove(selectedIndex);
+                listModel.remove(selectedIndex);
+            }
+        });
+        
         panel.add(formPanel, BorderLayout.NORTH);
         panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(buttonsPanel, BorderLayout.SOUTH);
         
         return panel;
     }
