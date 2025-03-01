@@ -28,7 +28,30 @@ public class MainWindow extends JFrame {
 
     public MainWindow() {
         super("TimelyPlan - College Timetable Generator");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        
+        // Set application icon
+        try {
+            // Try multiple methods to load the icon
+            java.net.URL iconURL = getClass().getResource("/images/timelyplan-icon.png");
+            if (iconURL == null) {
+                iconURL = getClass().getClassLoader().getResource("images/timelyplan-icon.png");
+            }
+            if (iconURL == null) {
+                iconURL = ClassLoader.getSystemResource("images/timelyplan-icon.png");
+            }
+            
+            if (iconURL != null) {
+                ImageIcon icon = new ImageIcon(iconURL);
+                setIconImage(icon.getImage());
+            } else {
+                System.err.println("Could not find icon file: /images/timelyplan-icon.png");
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load application icon: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
         setSize(1200, 800);
         setLocationRelativeTo(null);
 
@@ -40,7 +63,18 @@ public class MainWindow extends JFrame {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                saveData();
+                try {
+                    saveData();
+                    System.out.println("Data saved successfully");
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(MainWindow.this,
+                        "Error saving data: " + ex.getMessage(),
+                        "Save Error",
+                        JOptionPane.ERROR_MESSAGE);
+                }
+                dispose();
+                System.exit(0);
             }
         });
     }
@@ -68,6 +102,19 @@ public class MainWindow extends JFrame {
         }
         DataManager.saveRooms(rooms);
         DataManager.saveClasses(classPanel.getClasses());
+    }
+
+    private void saveDataAfterChange() {
+        try {
+            saveData();
+            System.out.println("Data saved successfully after change");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                "Error saving data: " + ex.getMessage(),
+                "Save Error",
+                JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void initializeComponents() {
@@ -153,6 +200,7 @@ public class MainWindow extends JFrame {
                 listModel.addElement(name + " (" + hours + " hrs/week)");
                 nameField.setText("");
                 hoursSpinner.setValue(20);
+                saveDataAfterChange();
             }
         });
         
@@ -171,6 +219,7 @@ public class MainWindow extends JFrame {
                             instructor = new Instructor(instructor.getId(), name.trim(), hours);
                             instructors.set(selectedIndex, instructor);
                             listModel.set(selectedIndex, name + " (" + hours + " hrs/week)");
+                            saveDataAfterChange();
                         }
                     } catch (NumberFormatException ex) {
                         JOptionPane.showMessageDialog(this, 
@@ -185,6 +234,7 @@ public class MainWindow extends JFrame {
             if (selectedIndex >= 0) {
                 instructors.remove(selectedIndex);
                 listModel.remove(selectedIndex);
+                saveDataAfterChange();
             }
         });
         
@@ -200,6 +250,7 @@ public class MainWindow extends JFrame {
         
         // Form panel
         JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBorder(BorderFactory.createTitledBorder("Add Subject"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         
@@ -226,14 +277,27 @@ public class MainWindow extends JFrame {
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
         formPanel.add(isLabCheckbox, gbc);
         
-        JButton addButton = new JButton("Add Subject");
+        JButton addButton = createStyledButton("Add Subject");
         gbc.gridx = 0; gbc.gridy = 4;
         formPanel.add(addButton, gbc);
         
         // List panel
         DefaultListModel<String> listModel = new DefaultListModel<>();
         JList<String> subjectList = new JList<>(listModel);
+        subjectList.setFont(new Font("Arial", Font.PLAIN, 12));
         JScrollPane scrollPane = new JScrollPane(subjectList);
+        
+        // Load existing subjects
+        subjects.forEach(subject -> 
+            listModel.addElement(subject.getName() + (subject.isLab() ? " (Lab)" : "") + 
+                               " - " + subject.getWeeklyHours() + " hrs/week"));
+        
+        // Buttons panel
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton editButton = createStyledButton("Edit");
+        JButton removeButton = createStyledButton("Remove");
+        buttonsPanel.add(editButton);
+        buttonsPanel.add(removeButton);
         
         addButton.addActionListener(e -> {
             String name = nameField.getText().trim();
@@ -249,11 +313,65 @@ public class MainWindow extends JFrame {
                 hoursSpinner.setValue(3);
                 durationSpinner.setValue(45);
                 isLabCheckbox.setSelected(false);
+                saveDataAfterChange();
+            }
+        });
+        
+        editButton.addActionListener(e -> {
+            int selectedIndex = subjectList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                Subject subject = subjects.get(selectedIndex);
+                String name = JOptionPane.showInputDialog(this, "Enter new name:", subject.getName());
+                if (name != null && !name.trim().isEmpty()) {
+                    try {
+                        String hoursStr = JOptionPane.showInputDialog(this, 
+                            "Enter weekly hours (1-20):", subject.getWeeklyHours());
+                        if (hoursStr != null) {
+                            int hours = Integer.parseInt(hoursStr);
+                            if (hours < 1 || hours > 20) {
+                                throw new NumberFormatException("Hours must be between 1 and 20");
+                            }
+                            
+                            String durationStr = JOptionPane.showInputDialog(this, 
+                                "Enter duration in minutes (45-180):", subject.getDuration());
+                            if (durationStr != null) {
+                                int duration = Integer.parseInt(durationStr);
+                                if (duration < 45 || duration > 180) {
+                                    throw new NumberFormatException("Duration must be between 45 and 180 minutes");
+                                }
+                                
+                                int isLabOption = JOptionPane.showConfirmDialog(this,
+                                    "Is this a lab session?", "Lab Session",
+                                    JOptionPane.YES_NO_OPTION);
+                                boolean isLab = (isLabOption == JOptionPane.YES_OPTION);
+                                
+                                subject = new Subject(subject.getId(), name.trim(), hours, isLab, duration);
+                                subjects.set(selectedIndex, subject);
+                                listModel.set(selectedIndex, name + (isLab ? " (Lab)" : "") + 
+                                            " - " + hours + " hrs/week");
+                                saveDataAfterChange();
+                            }
+                        }
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(this, 
+                            "Invalid input: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }
+        });
+        
+        removeButton.addActionListener(e -> {
+            int selectedIndex = subjectList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                subjects.remove(selectedIndex);
+                listModel.remove(selectedIndex);
+                saveDataAfterChange();
             }
         });
         
         panel.add(formPanel, BorderLayout.NORTH);
         panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(buttonsPanel, BorderLayout.SOUTH);
         
         return panel;
     }
@@ -263,6 +381,7 @@ public class MainWindow extends JFrame {
         
         // Form panel
         JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBorder(BorderFactory.createTitledBorder("Add Time Slot"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         
@@ -294,14 +413,25 @@ public class MainWindow extends JFrame {
         gbc.gridx = 1;
         formPanel.add(typeCombo, gbc);
         
-        JButton addButton = new JButton("Add Time Slot");
+        JButton addButton = createStyledButton("Add Time Slot");
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
         formPanel.add(addButton, gbc);
         
         // List panel
         DefaultListModel<String> listModel = new DefaultListModel<>();
         JList<String> timeSlotList = new JList<>(listModel);
+        timeSlotList.setFont(new Font("Arial", Font.PLAIN, 12));
         JScrollPane scrollPane = new JScrollPane(timeSlotList);
+        
+        // Load existing time slots
+        timeSlots.forEach(slot -> listModel.addElement(slot.toString()));
+        
+        // Buttons panel
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton editButton = createStyledButton("Edit");
+        JButton removeButton = createStyledButton("Remove");
+        buttonsPanel.add(editButton);
+        buttonsPanel.add(removeButton);
         
         addButton.addActionListener(e -> {
             Date startDate = startModel.getDate();
@@ -311,14 +441,79 @@ public class MainWindow extends JFrame {
             LocalTime startTime = LocalTime.of(startDate.getHours(), startDate.getMinutes());
             LocalTime endTime = LocalTime.of(endDate.getHours(), endDate.getMinutes());
             
-            TimeSlot slot = new TimeSlot(startTime, endTime, 
-                                       !type.equals("REGULAR"), type);
-            timeSlots.add(slot);
-            listModel.addElement(slot.toString());
+            if (endTime.isAfter(startTime)) {
+                TimeSlot slot = new TimeSlot(startTime, endTime, 
+                                           !type.equals("REGULAR"), type);
+                timeSlots.add(slot);
+                listModel.addElement(slot.toString());
+                saveDataAfterChange();
+            } else {
+                JOptionPane.showMessageDialog(this,
+                    "End time must be after start time",
+                    "Invalid Time Range",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        
+        editButton.addActionListener(e -> {
+            int selectedIndex = timeSlotList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                TimeSlot slot = timeSlots.get(selectedIndex);
+                
+                // Set current values in spinners
+                Calendar cal = Calendar.getInstance();
+                cal.set(Calendar.HOUR_OF_DAY, slot.getStartTime().getHour());
+                cal.set(Calendar.MINUTE, slot.getStartTime().getMinute());
+                startSpinner.setValue(cal.getTime());
+                
+                cal.set(Calendar.HOUR_OF_DAY, slot.getEndTime().getHour());
+                cal.set(Calendar.MINUTE, slot.getEndTime().getMinute());
+                endSpinner.setValue(cal.getTime());
+                
+                typeCombo.setSelectedItem(slot.getType());
+                
+                int result = JOptionPane.showConfirmDialog(this,
+                    formPanel,
+                    "Edit Time Slot",
+                    JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.PLAIN_MESSAGE);
+                
+                if (result == JOptionPane.OK_OPTION) {
+                    Date startDate = startModel.getDate();
+                    Date endDate = endModel.getDate();
+                    String type = (String) typeCombo.getSelectedItem();
+                    
+                    LocalTime startTime = LocalTime.of(startDate.getHours(), startDate.getMinutes());
+                    LocalTime endTime = LocalTime.of(endDate.getHours(), endDate.getMinutes());
+                    
+                    if (endTime.isAfter(startTime)) {
+                        TimeSlot newSlot = new TimeSlot(startTime, endTime, 
+                                                      !type.equals("REGULAR"), type);
+                        timeSlots.set(selectedIndex, newSlot);
+                        listModel.set(selectedIndex, newSlot.toString());
+                        saveDataAfterChange();
+                    } else {
+                        JOptionPane.showMessageDialog(this,
+                            "End time must be after start time",
+                            "Invalid Time Range",
+                            JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }
+        });
+        
+        removeButton.addActionListener(e -> {
+            int selectedIndex = timeSlotList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                timeSlots.remove(selectedIndex);
+                listModel.remove(selectedIndex);
+                saveDataAfterChange();
+            }
         });
         
         panel.add(formPanel, BorderLayout.NORTH);
         panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(buttonsPanel, BorderLayout.SOUTH);
         
         return panel;
     }
@@ -328,6 +523,7 @@ public class MainWindow extends JFrame {
         
         // Form panel
         JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBorder(BorderFactory.createTitledBorder("Add Room"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         
@@ -338,13 +534,21 @@ public class MainWindow extends JFrame {
         gbc.gridx = 1;
         formPanel.add(roomField, gbc);
         
-        JButton addButton = new JButton("Add Room");
+        JButton addButton = createStyledButton("Add Room");
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2;
         formPanel.add(addButton, gbc);
         
         // List panel
         JList<String> roomList = new JList<>(roomsListModel);
+        roomList.setFont(new Font("Arial", Font.PLAIN, 12));
         JScrollPane scrollPane = new JScrollPane(roomList);
+        
+        // Buttons panel
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton editButton = createStyledButton("Edit");
+        JButton removeButton = createStyledButton("Remove");
+        buttonsPanel.add(editButton);
+        buttonsPanel.add(removeButton);
         
         addButton.addActionListener(e -> {
             String room = roomField.getText().trim();
@@ -352,11 +556,35 @@ public class MainWindow extends JFrame {
                 generator.addRoom(room);
                 roomsListModel.addElement(room);
                 roomField.setText("");
+                saveDataAfterChange();
+            }
+        });
+        
+        editButton.addActionListener(e -> {
+            int selectedIndex = roomList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                String oldRoom = roomsListModel.getElementAt(selectedIndex);
+                String newRoom = JOptionPane.showInputDialog(this, 
+                    "Enter new room name:", oldRoom);
+                if (newRoom != null && !newRoom.trim().isEmpty()) {
+                    generator.addRoom(newRoom.trim());
+                    roomsListModel.set(selectedIndex, newRoom.trim());
+                    saveDataAfterChange();
+                }
+            }
+        });
+        
+        removeButton.addActionListener(e -> {
+            int selectedIndex = roomList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                roomsListModel.remove(selectedIndex);
+                saveDataAfterChange();
             }
         });
         
         panel.add(formPanel, BorderLayout.NORTH);
         panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(buttonsPanel, BorderLayout.SOUTH);
         
         return panel;
     }

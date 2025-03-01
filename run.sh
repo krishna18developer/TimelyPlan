@@ -19,13 +19,23 @@ if ! command -v mvn &> /dev/null; then
     exit 1
 fi
 
-echo "Building TimelyPlan..."
-mvn clean package
-
-if [ $? -eq 0 ]; then
-    echo "Build successful. Starting TimelyPlan..."
+# Check if the JAR file exists when using --no-build
+if [ "$1" = "--no-build" ]; then
+    if [ ! -f "target/timelyplan-1.0-SNAPSHOT-jar-with-dependencies.jar" ]; then
+        echo "JAR file not found. Please run without --no-build first to build the project."
+        exit 1
+    fi
+    echo "Starting TimelyPlan..."
     java -jar target/timelyplan-1.0-SNAPSHOT-jar-with-dependencies.jar
 else
-    echo "Build failed. Please check the error messages above."
-    exit 1
+    echo "Building TimelyPlan..."
+    mvn clean package
+
+    if [ $? -eq 0 ]; then
+        echo "Build successful. Starting TimelyPlan..."
+        java -jar target/timelyplan-1.0-SNAPSHOT-jar-with-dependencies.jar
+    else
+        echo "Build failed. Please check the error messages above."
+        exit 1
+    fi
 fi 

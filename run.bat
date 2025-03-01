@@ -28,13 +28,23 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Building TimelyPlan...
-call mvn clean package
-
-if errorlevel 1 (
-    echo Build failed. Please check the error messages above.
-    exit /b 1
-) else (
-    echo Build successful. Starting TimelyPlan...
+REM Check if --no-build flag is used
+if "%1"=="--no-build" (
+    if not exist "target\timelyplan-1.0-SNAPSHOT-jar-with-dependencies.jar" (
+        echo JAR file not found. Please run without --no-build first to build the project.
+        exit /b 1
+    )
+    echo Starting TimelyPlan...
     java -jar target\timelyplan-1.0-SNAPSHOT-jar-with-dependencies.jar
+) else (
+    echo Building TimelyPlan...
+    call mvn clean package
+
+    if errorlevel 1 (
+        echo Build failed. Please check the error messages above.
+        exit /b 1
+    ) else (
+        echo Build successful. Starting TimelyPlan...
+        java -jar target\timelyplan-1.0-SNAPSHOT-jar-with-dependencies.jar
+    )
 ) 
