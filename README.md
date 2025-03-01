@@ -1,43 +1,48 @@
- # TimelyPlan - Timetable Management System
+# TimelyPlan - College Timetable Generator
 
-TimelyPlan is a Java-based application designed to help educational institutions create and manage timetables for courses, instructors, and sections. It provides an intuitive interface for managing scheduling constraints and generating conflict-free timetables.
+TimelyPlan is a Java Swing-based application for generating and managing college timetables. It provides an intuitive interface for configuring instructors, subjects, time slots, and rooms, then automatically generates optimized weekly timetables.
 
 ## Features
 
-- Course Management
-  - Add and manage courses with weekly hour requirements
-  - Specify lab requirements for courses
+- **Instructor Management**
+  - Add instructors with their maximum weekly working hours
+  - Track and manage instructor schedules
 
-- Instructor Management
-  - Define instructor details and availability
-  - Set maximum weekly teaching hours
-  - Assign courses to instructors
+- **Subject & Lab Management**
+  - Define subjects with required weekly hours
+  - Support for both theory classes and lab sessions
+  - Configurable duration for different types of classes
 
-- Section Management
-  - Create sections with year-based classification
-  - Configure half-day schedules for Saturdays
-  - Set preferred free periods
+- **Flexible Time Slot Configuration**
+  - Set custom time slots for classes
+  - Define breaks and lunch periods
+  - Support for different session durations
 
-- Timetable Generation
-  - Automatically generate conflict-free timetables
-  - Consider instructor availability and course requirements
-  - Support for custom constraints
+- **Room Management**
+  - Add and manage multiple classrooms and labs
+  - Automatic room assignment based on class requirements
 
-- Export Options
-  - Export timetables to Excel format
-  - Export timetables to PDF format
+- **Automatic Timetable Generation**
+  - Generate conflict-free timetables
+  - Fair distribution of subjects across the week
+  - Option to allow/disallow consecutive classes for instructors
 
-## System Requirements
+- **Export Capabilities**
+  - View timetable in a clear, tabular format
+  - Export timetable to PDF
+  - Print functionality
 
-- Java Development Kit (JDK) 21 or later
-- Maven 3.6 or later
+## Requirements
+
+- Java 11 or higher
+- Maven for dependency management
 
 ## Building the Application
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/timelyplan.git
-   cd timelyplan
+   git clone [repository-url]
+   cd TimelyPlan
    ```
 
 2. Build with Maven:
@@ -45,36 +50,45 @@ TimelyPlan is a Java-based application designed to help educational institutions
    mvn clean package
    ```
 
-## Running the Application
+3. Run the application:
+   ```bash
+   java -jar target/timelyplan-1.0-SNAPSHOT.jar
+   ```
 
-After building, run the application using:
+## Using the Application
 
-```bash
-java --module-path $PATH_TO_FX --add-modules javafx.controls,javafx.fxml -jar target/timelyplan-1.0-SNAPSHOT.jar
-```
-
-## Usage Guide
-
-1. **Adding Courses**
-   - Navigate to the Courses tab
-   - Fill in the course details (ID, Name, Weekly Hours)
-   - Check "Requires Lab" if applicable
-   - Click "Add Course"
-
-2. **Managing Instructors**
-   - Go to the Instructors tab
-   - Enter instructor information
-   - Set maximum weekly hours
+1. **Add Instructors**
+   - Go to the "Instructors" tab
+   - Enter instructor name and maximum weekly hours
    - Click "Add Instructor"
 
-3. **Creating Sections**
-   - Switch to the Sections tab
-   - Provide section details
-   - Select year and half-day preference
-   - Click "Add Section"
+2. **Define Subjects**
+   - Navigate to the "Subjects" tab
+   - Enter subject details (name, weekly hours, duration)
+   - Specify if it's a lab session
+   - Click "Add Subject"
 
-4. **Generating Timetables**
-   - Open the Timetable tab
-   - Select a section from the dropdown
+3. **Configure Time Slots**
+   - Go to the "Time Slots" tab
+   - Set start and end times
+   - Select slot type (Regular/Break/Lunch)
+   - Click "Add Time Slot"
+
+4. **Add Rooms**
+   - Use the "Rooms" tab
+   - Enter room names/numbers
+   - Click "Add Room"
+
+5. **Generate Timetable**
+   - Go to the "Generate" tab
+   - Choose whether to allow consecutive classes
    - Click "Generate Timetable"
-   - Export to Excel or PDF using the File menu
+   - Use "Export to PDF" to save or print the timetable
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit pull requests.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details. 

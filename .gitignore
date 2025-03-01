@@ -8,6 +8,7 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
 
 # Compiled class files
 *.class
@@ -24,32 +25,21 @@ buildNumber.properties
 *.tar.gz
 *.rar
 
-# IDE - IntelliJ
+# IDE-specific files (IntelliJ IDEA, Eclipse, VS Code)
 .idea/
-*.iws
 *.iml
-*.ipr
-
-# IDE - Eclipse
-.classpath
-.project
+*.iws
 .settings/
-.metadata/
-bin/
-
-# IDE - VS Code
+.project
+.classpath
 .vscode/
-.code-workspace
 
-# macOS
+# macOS system files
 .DS_Store
 .AppleDouble
 .LSOverride
 
-# Java
-hs_err_pid*
-replay_pid*
-
-# Application specific
-*.xlsx
-*.pdf 
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini 
