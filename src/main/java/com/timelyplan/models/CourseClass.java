@@ -9,10 +9,13 @@ public class CourseClass {
     private String name;
     private int semester;
     private Map<String, String> subjectToInstructorMap; // Subject ID -> Instructor ID
+    private Map<String, String> subjectToLabRoomMap; // Subject ID -> Lab Room (for lab subjects)
+    private String permanentRoom;  // Regular classroom for non-lab subjects
 
     // No-args constructor for Jackson
     public CourseClass() {
         this.subjectToInstructorMap = new HashMap<>();
+        this.subjectToLabRoomMap = new HashMap<>();
     }
 
     @JsonCreator
@@ -24,6 +27,8 @@ public class CourseClass {
         this.name = name;
         this.semester = semester;
         this.subjectToInstructorMap = new HashMap<>();
+        this.subjectToLabRoomMap = new HashMap<>();
+        this.permanentRoom = null;
     }
 
     @JsonProperty("id")
@@ -51,6 +56,26 @@ public class CourseClass {
         this.subjectToInstructorMap = new HashMap<>(map);
     }
 
+    @JsonProperty("subjectToLabRoomMap")
+    public Map<String, String> getSubjectToLabRoomMap() {
+        return new HashMap<>(subjectToLabRoomMap);
+    }
+
+    @JsonProperty("subjectToLabRoomMap")
+    public void setSubjectToLabRoomMap(Map<String, String> map) {
+        this.subjectToLabRoomMap = new HashMap<>(map);
+    }
+
+    @JsonProperty("permanentRoom")
+    public String getPermanentRoom() {
+        return permanentRoom;
+    }
+
+    @JsonProperty("permanentRoom")
+    public void setPermanentRoom(String permanentRoom) {
+        this.permanentRoom = permanentRoom;
+    }
+
     public void assignInstructorToSubject(String subjectId, String instructorId) {
         subjectToInstructorMap.put(subjectId, instructorId);
     }
@@ -59,8 +84,17 @@ public class CourseClass {
         return subjectToInstructorMap.get(subjectId);
     }
 
+    public void assignLabRoomToSubject(String subjectId, String labRoom) {
+        subjectToLabRoomMap.put(subjectId, labRoom);
+    }
+
+    public String getLabRoomForSubject(String subjectId) {
+        return subjectToLabRoomMap.get(subjectId);
+    }
+
     public void removeSubject(String subjectId) {
         subjectToInstructorMap.remove(subjectId);
+        subjectToLabRoomMap.remove(subjectId);
     }
 
     @Override

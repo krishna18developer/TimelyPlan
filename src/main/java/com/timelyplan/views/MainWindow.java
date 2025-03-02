@@ -5,6 +5,7 @@ import com.timelyplan.models.*;
 import com.timelyplan.utils.DataManager;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.*;
 import java.time.LocalTime;
@@ -14,6 +15,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 
 public class MainWindow extends JFrame {
     private TimetableGenerator generator;
@@ -87,7 +89,7 @@ public class MainWindow extends JFrame {
         List<String> rooms = DataManager.loadRooms();
         rooms.forEach(room -> {
             roomsListModel.addElement(room);
-            generator.addRoom(room);
+            generator.addRoom(room, room.startsWith("L"));
         });
         classes = DataManager.loadClasses();
     }
@@ -118,6 +120,11 @@ public class MainWindow extends JFrame {
     }
 
     private void initializeComponents() {
+        setTitle("TimelyPlan - College Timetable Generator");
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        setSize(1200, 800);
+        setLocationRelativeTo(null);
+
         tabbedPane = new JTabbedPane();
         tabbedPane.setFont(new Font("Arial", Font.PLAIN, 14));
         
@@ -126,10 +133,14 @@ public class MainWindow extends JFrame {
         tabbedPane.addTab("Subjects", createStyledPanel(createSubjectsPanel()));
         tabbedPane.addTab("Time Slots", createStyledPanel(createTimeSlotsPanel()));
         tabbedPane.addTab("Rooms", createStyledPanel(createRoomsPanel()));
-        classPanel = new ClassPanel(classes, subjects, instructors);
-        tabbedPane.addTab("Classes", createStyledPanel(classPanel));
-        tabbedPane.addTab("Generate", createStyledPanel(createGeneratePanel()));
         
+        // Initialize ClassPanel with save callback
+        classPanel = new ClassPanel(classes, subjects, instructors, roomsListModel);
+        classPanel.setSaveCallback(() -> saveData());
+        tabbedPane.addTab("Classes", createStyledPanel(classPanel));
+        
+        tabbedPane.addTab("Generate", createStyledPanel(createGeneratePanel()));
+
         add(tabbedPane);
     }
 
@@ -311,7 +322,7 @@ public class MainWindow extends JFrame {
                 listModel.addElement(name + (isLab ? " (Lab)" : "") + " - " + hours + " hrs/week");
                 nameField.setText("");
                 hoursSpinner.setValue(3);
-                durationSpinner.setValue(45);
+                durationSpinner.setValue(55);
                 isLabCheckbox.setSelected(false);
                 saveDataAfterChange();
             }
@@ -385,8 +396,16 @@ public class MainWindow extends JFrame {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         
-        SpinnerDateModel startModel = new SpinnerDateModel();
-        SpinnerDateModel endModel = new SpinnerDateModel();
+        // Initialize spinners with current time
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 9);
+        cal.set(Calendar.MINUTE, 0);
+        SpinnerDateModel startModel = new SpinnerDateModel(cal.getTime(), null, null, Calendar.MINUTE);
+        
+        cal.set(Calendar.HOUR_OF_DAY, 10);
+        cal.set(Calendar.MINUTE, 0);
+        SpinnerDateModel endModel = new SpinnerDateModel(cal.getTime(), null, null, Calendar.MINUTE);
+        
         JSpinner startSpinner = new JSpinner(startModel);
         JSpinner endSpinner = new JSpinner(endModel);
         
@@ -417,14 +436,18 @@ public class MainWindow extends JFrame {
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
         formPanel.add(addButton, gbc);
         
-        // List panel
+        // List panel with improved visibility
         DefaultListModel<String> listModel = new DefaultListModel<>();
         JList<String> timeSlotList = new JList<>(listModel);
         timeSlotList.setFont(new Font("Arial", Font.PLAIN, 12));
+        timeSlotList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane scrollPane = new JScrollPane(timeSlotList);
+        scrollPane.setPreferredSize(new Dimension(300, 200));
         
-        // Load existing time slots
-        timeSlots.forEach(slot -> listModel.addElement(slot.toString()));
+        // Load existing time slots and sort them by start time
+        List<TimeSlot> sortedSlots = new ArrayList<>(timeSlots);
+        sortedSlots.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
+        sortedSlots.forEach(slot -> listModel.addElement(slot.toString()));
         
         // Buttons panel
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -445,7 +468,13 @@ public class MainWindow extends JFrame {
                 TimeSlot slot = new TimeSlot(startTime, endTime, 
                                            !type.equals("REGULAR"), type);
                 timeSlots.add(slot);
-                listModel.addElement(slot.toString());
+                
+                // Re-sort and update the list
+                List<TimeSlot> newSortedSlots = new ArrayList<>(timeSlots);
+                newSortedSlots.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
+                listModel.clear();
+                newSortedSlots.forEach(s -> listModel.addElement(s.toString()));
+                
                 saveDataAfterChange();
             } else {
                 JOptionPane.showMessageDialog(this,
@@ -461,14 +490,14 @@ public class MainWindow extends JFrame {
                 TimeSlot slot = timeSlots.get(selectedIndex);
                 
                 // Set current values in spinners
-                Calendar cal = Calendar.getInstance();
-                cal.set(Calendar.HOUR_OF_DAY, slot.getStartTime().getHour());
-                cal.set(Calendar.MINUTE, slot.getStartTime().getMinute());
-                startSpinner.setValue(cal.getTime());
+                Calendar calendar = Calendar.getInstance();
+                calendar.set(Calendar.HOUR_OF_DAY, slot.getStartTime().getHour());
+                calendar.set(Calendar.MINUTE, slot.getStartTime().getMinute());
+                startSpinner.setValue(calendar.getTime());
                 
-                cal.set(Calendar.HOUR_OF_DAY, slot.getEndTime().getHour());
-                cal.set(Calendar.MINUTE, slot.getEndTime().getMinute());
-                endSpinner.setValue(cal.getTime());
+                calendar.set(Calendar.HOUR_OF_DAY, slot.getEndTime().getHour());
+                calendar.set(Calendar.MINUTE, slot.getEndTime().getMinute());
+                endSpinner.setValue(calendar.getTime());
                 
                 typeCombo.setSelectedItem(slot.getType());
                 
@@ -490,7 +519,13 @@ public class MainWindow extends JFrame {
                         TimeSlot newSlot = new TimeSlot(startTime, endTime, 
                                                       !type.equals("REGULAR"), type);
                         timeSlots.set(selectedIndex, newSlot);
-                        listModel.set(selectedIndex, newSlot.toString());
+                        
+                        // Re-sort and update the list
+                        List<TimeSlot> newSortedSlots = new ArrayList<>(timeSlots);
+                        newSortedSlots.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
+                        listModel.clear();
+                        newSortedSlots.forEach(s -> listModel.addElement(s.toString()));
+                        
                         saveDataAfterChange();
                     } else {
                         JOptionPane.showMessageDialog(this,
@@ -528,14 +563,18 @@ public class MainWindow extends JFrame {
         gbc.insets = new Insets(5, 5, 5, 5);
         
         JTextField roomField = new JTextField(20);
+        JCheckBox isLabCheckbox = new JCheckBox("Is Lab Room");
         
         gbc.gridx = 0; gbc.gridy = 0;
         formPanel.add(new JLabel("Room Name:"), gbc);
         gbc.gridx = 1;
         formPanel.add(roomField, gbc);
         
-        JButton addButton = createStyledButton("Add Room");
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2;
+        formPanel.add(isLabCheckbox, gbc);
+        
+        JButton addButton = createStyledButton("Add Room");
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
         formPanel.add(addButton, gbc);
         
         // List panel
@@ -553,9 +592,14 @@ public class MainWindow extends JFrame {
         addButton.addActionListener(e -> {
             String room = roomField.getText().trim();
             if (!room.isEmpty()) {
-                generator.addRoom(room);
+                boolean isLab = isLabCheckbox.isSelected();
+                if (isLab && !room.startsWith("L")) {
+                    room = "L" + room;
+                }
+                generator.addRoom(room, isLab);
                 roomsListModel.addElement(room);
                 roomField.setText("");
+                isLabCheckbox.setSelected(false);
                 saveDataAfterChange();
             }
         });
@@ -564,12 +608,30 @@ public class MainWindow extends JFrame {
             int selectedIndex = roomList.getSelectedIndex();
             if (selectedIndex >= 0) {
                 String oldRoom = roomsListModel.getElementAt(selectedIndex);
-                String newRoom = JOptionPane.showInputDialog(this, 
-                    "Enter new room name:", oldRoom);
-                if (newRoom != null && !newRoom.trim().isEmpty()) {
-                    generator.addRoom(newRoom.trim());
-                    roomsListModel.set(selectedIndex, newRoom.trim());
-                    saveDataAfterChange();
+                boolean isLab = oldRoom.startsWith("L");
+                
+                // Create a panel for the dialog
+                JPanel dialogPanel = new JPanel(new GridLayout(2, 1));
+                JTextField newRoomField = new JTextField(oldRoom);
+                JCheckBox newIsLabCheckbox = new JCheckBox("Is Lab Room", isLab);
+                dialogPanel.add(newRoomField);
+                dialogPanel.add(newIsLabCheckbox);
+                
+                int result = JOptionPane.showConfirmDialog(this, dialogPanel, 
+                    "Edit Room", JOptionPane.OK_CANCEL_OPTION);
+                    
+                if (result == JOptionPane.OK_OPTION) {
+                    String newRoom = newRoomField.getText().trim();
+                    boolean newIsLab = newIsLabCheckbox.isSelected();
+                    
+                    if (!newRoom.isEmpty()) {
+                        if (newIsLab && !newRoom.startsWith("L")) {
+                            newRoom = "L" + newRoom;
+                        }
+                        generator.addRoom(newRoom, newIsLab);
+                        roomsListModel.set(selectedIndex, newRoom);
+                        saveDataAfterChange();
+                    }
                 }
             }
         });
@@ -592,15 +654,34 @@ public class MainWindow extends JFrame {
     private JPanel createGeneratePanel() {
         JPanel panel = new JPanel(new BorderLayout());
         
-        JPanel controlPanel = new JPanel(new FlowLayout());
+        JPanel controlPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.WEST;
+        
         JCheckBox consecutiveClassesBox = new JCheckBox("Allow Consecutive Classes");
         consecutiveClassesBox.setSelected(true);
+        
+        // Add spinner for consecutive lab hours
+        JSpinner labHoursSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 6, 1));
+        JLabel labHoursLabel = new JLabel("Max Consecutive Lab Hours: ");
+        
         JButton generateButton = new JButton("Generate Timetable");
         JButton exportButton = new JButton("Export to PDF");
         
-        controlPanel.add(consecutiveClassesBox);
-        controlPanel.add(generateButton);
-        controlPanel.add(exportButton);
+        // Layout components
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        controlPanel.add(consecutiveClassesBox, gbc);
+        
+        gbc.gridy = 1; gbc.gridwidth = 1;
+        controlPanel.add(labHoursLabel, gbc);
+        gbc.gridx = 1;
+        controlPanel.add(labHoursSpinner, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 1;
+        controlPanel.add(generateButton, gbc);
+        gbc.gridx = 1;
+        controlPanel.add(exportButton, gbc);
         
         // Create table
         String[] columnNames = {"Time", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -609,17 +690,33 @@ public class MainWindow extends JFrame {
         
         generateButton.addActionListener(e -> {
             try {
+                // Create a new generator with the current settings
+                generator = new TimetableGenerator();
                 generator.setAllowConsecutiveClasses(consecutiveClassesBox.isSelected());
+                generator.setMaxConsecutiveLabHours((Integer) labHoursSpinner.getValue());
                 
-                // Add all data to generator
+                // Add all subjects
                 for (Subject subject : subjects) {
                     generator.addSubject(subject);
                 }
                 
+                // Add all instructors
                 for (Instructor instructor : instructors) {
                     generator.addInstructor(instructor);
                 }
                 
+                // Add all rooms with type information
+                for (int i = 0; i < roomsListModel.size(); i++) {
+                    String room = roomsListModel.getElementAt(i);
+                    generator.addRoom(room, room.startsWith("L"));
+                }
+                
+                // Add all classes and their room assignments
+                for (CourseClass courseClass : classPanel.getClasses()) {
+                    generator.addCourseClass(courseClass);
+                }
+                
+                // Set time slots
                 generator.setTimeSlots(timeSlots);
                 
                 // Generate timetable
@@ -629,6 +726,7 @@ public class MainWindow extends JFrame {
                 updateTimetableDisplay(timetable);
                 
             } catch (Exception ex) {
+                ex.printStackTrace(); // Add this to see the full error stack trace
                 JOptionPane.showMessageDialog(this,
                     "Error generating timetable: " + ex.getMessage(),
                     "Generation Error",
@@ -645,35 +743,68 @@ public class MainWindow extends JFrame {
     }
 
     private void updateTimetableDisplay(Map<String, List<TimetableEntry>> timetable) {
-        DefaultTableModel model = (DefaultTableModel) timetableTable.getModel();
-        model.setRowCount(0);
-        
         // Sort time slots
         List<TimeSlot> sortedSlots = new ArrayList<>(timeSlots);
         sortedSlots.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
-        
-        for (TimeSlot slot : sortedSlots) {
-            Object[] row = new Object[7];
-            row[0] = slot.toString();
+
+        // Create column headers with time slots
+        String[] columnNames = new String[sortedSlots.size() + 1];
+        columnNames[0] = "Day";
+        for (int i = 0; i < sortedSlots.size(); i++) {
+            TimeSlot slot = sortedSlots.get(i);
+            columnNames[i + 1] = String.format("%s-%s", 
+                slot.getStartTime().toString(), 
+                slot.getEndTime().toString());
+        }
+
+        // Create the table model with the new column structure
+        DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        timetableTable.setModel(model);
+
+        // Add data for each day
+        List<String> days = Arrays.asList("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY");
+        for (String day : days) {
+            Object[] row = new Object[sortedSlots.size() + 1];
+            row[0] = day;
             
-            int col = 1;
-            for (String day : Arrays.asList("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY")) {
-                List<TimetableEntry> entries = timetable.get(day);
+            List<TimetableEntry> dayEntries = timetable.get(day);
+            for (int i = 0; i < sortedSlots.size(); i++) {
+                TimeSlot slot = sortedSlots.get(i);
                 String cellContent = "";
                 
-                for (TimetableEntry entry : entries) {
+                for (TimetableEntry entry : dayEntries) {
                     if (entry.getTimeSlot().equals(slot)) {
-                        cellContent = entry.getSubject().getName() + "\n" +
-                                    entry.getInstructor().getName() + "\n" +
-                                    entry.getRoom();
+                        cellContent = String.format("<html><div style='text-align: center;'><b>%s</b><br>%s<br>%s</div></html>",
+                            entry.getSubject().getName(),
+                            entry.getInstructor().getName(),
+                            entry.getRoom());
                         break;
                     }
                 }
                 
-                row[col++] = cellContent;
+                row[i + 1] = cellContent;
             }
             
             model.addRow(row);
+        }
+
+        // Set table appearance
+        timetableTable.setRowHeight(80);
+        timetableTable.getColumnModel().getColumn(0).setPreferredWidth(100);
+        for (int i = 1; i < timetableTable.getColumnCount(); i++) {
+            timetableTable.getColumnModel().getColumn(i).setPreferredWidth(150);
+        }
+        
+        // Center align all cells
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        for (int i = 0; i < timetableTable.getColumnCount(); i++) {
+            timetableTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         }
     }
 
@@ -684,61 +815,104 @@ public class MainWindow extends JFrame {
             
             if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
                 PDDocument document = new PDDocument();
-                PDPage page = new PDPage();
+                PDPage page = new PDPage(new PDRectangle(PDRectangle.A3.getHeight(), PDRectangle.A3.getWidth()));
                 document.addPage(page);
                 
                 PDPageContentStream contentStream = new PDPageContentStream(document, page);
                 
                 // Add title
                 contentStream.beginText();
-                contentStream.setFont(PDType1Font.HELVETICA_BOLD, 16);
-                contentStream.newLineAtOffset(50, 750);
+                contentStream.setFont(PDType1Font.HELVETICA_BOLD, 24);
+                contentStream.newLineAtOffset(50, page.getMediaBox().getWidth() - 50);
                 contentStream.showText("College Timetable");
                 contentStream.endText();
                 
-                // Add table content
-                float y = 700;
+                // Calculate table dimensions
                 float margin = 50;
-                float tableWidth = page.getMediaBox().getWidth() - 2 * margin;
-                float rowHeight = 20;
+                float yStart = page.getMediaBox().getWidth() - 100;
+                float tableWidth = page.getMediaBox().getHeight() - 2 * margin;
+                float yPosition = yStart;
+                float rowHeight = 60;
                 float tableHeight = rowHeight * (timetableTable.getRowCount() + 1);
-                float cellMargin = 5;
+                float colWidth = (tableWidth - 100) / (timetableTable.getColumnCount() - 1);
                 
                 // Draw table grid
-                float nextY = y;
-                for (int row = 0; row <= timetableTable.getRowCount(); row++) {
-                    contentStream.moveTo(margin, nextY);
-                    contentStream.lineTo(margin + tableWidth, nextY);
+                // First, draw the day column (narrower)
+                contentStream.setLineWidth(1f);
+                contentStream.moveTo(margin, yStart);
+                contentStream.lineTo(margin, yStart - tableHeight);
+                contentStream.moveTo(margin + 100, yStart);
+                contentStream.lineTo(margin + 100, yStart - tableHeight);
+                contentStream.stroke();
+                
+                // Draw horizontal lines
+                for (int i = 0; i <= timetableTable.getRowCount(); i++) {
+                    contentStream.moveTo(margin, yPosition);
+                    contentStream.lineTo(margin + tableWidth, yPosition);
                     contentStream.stroke();
-                    nextY -= rowHeight;
+                    yPosition -= rowHeight;
                 }
                 
-                float colWidth = tableWidth / timetableTable.getColumnCount();
-                float nextX = margin;
-                for (int col = 0; col <= timetableTable.getColumnCount(); col++) {
-                    contentStream.moveTo(nextX, y);
-                    contentStream.lineTo(nextX, y - tableHeight);
+                // Draw vertical lines for time slots
+                float xPosition = margin + 100;
+                for (int i = 0; i <= timetableTable.getColumnCount() - 1; i++) {
+                    contentStream.moveTo(xPosition, yStart);
+                    contentStream.lineTo(xPosition, yStart - tableHeight);
                     contentStream.stroke();
-                    nextX += colWidth;
+                    xPosition += colWidth;
                 }
                 
-                // Add text content
-                contentStream.setFont(PDType1Font.HELVETICA, 8);
-                float textY = y - 15;
+                // Add headers
+                contentStream.setFont(PDType1Font.HELVETICA_BOLD, 10);
+                float xText = margin + 10;
+                float yText = yStart - 15;
+                
+                // Add "Day" header
+                contentStream.beginText();
+                contentStream.newLineAtOffset(xText, yText);
+                contentStream.showText("Day");
+                contentStream.endText();
+                
+                // Add time slot headers
+                xText = margin + 110;
+                for (int i = 1; i < timetableTable.getColumnCount(); i++) {
+                    String header = timetableTable.getColumnName(i);
+                    contentStream.beginText();
+                    contentStream.newLineAtOffset(xText, yText);
+                    contentStream.showText(header);
+                    contentStream.endText();
+                    xText += colWidth;
+                }
+                
+                // Add table content
+                contentStream.setFont(PDType1Font.HELVETICA, 9);
+                yText = yStart - rowHeight - 15;
                 
                 for (int row = 0; row < timetableTable.getRowCount(); row++) {
-                    float textX = margin + cellMargin;
+                    // Add day
+                    xText = margin + 10;
+                    contentStream.beginText();
+                    contentStream.newLineAtOffset(xText, yText);
+                    contentStream.showText(timetableTable.getValueAt(row, 0).toString());
+                    contentStream.endText();
                     
-                    for (int col = 0; col < timetableTable.getColumnCount(); col++) {
-                        String text = String.valueOf(timetableTable.getValueAt(row, col));
+                    // Add entries
+                    xText = margin + 110;
+                    for (int col = 1; col < timetableTable.getColumnCount(); col++) {
+                        String cellContent = String.valueOf(timetableTable.getValueAt(row, col))
+                            .replace("<html><div style='text-align: center;'>", "")
+                            .replace("</div></html>", "")
+                            .replace("<br>", " - ")
+                            .replace("<b>", "")
+                            .replace("</b>", "");
+                            
                         contentStream.beginText();
-                        contentStream.newLineAtOffset(textX, textY);
-                        contentStream.showText(text.replace("\n", " - "));
+                        contentStream.newLineAtOffset(xText, yText);
+                        contentStream.showText(cellContent);
                         contentStream.endText();
-                        textX += colWidth;
+                        xText += colWidth;
                     }
-                    
-                    textY -= rowHeight;
+                    yText -= rowHeight;
                 }
                 
                 contentStream.close();

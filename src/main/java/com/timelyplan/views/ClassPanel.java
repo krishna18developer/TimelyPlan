@@ -3,6 +3,7 @@ package com.timelyplan.views;
 import com.timelyplan.models.*;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.util.*;
 import java.util.List;
 
@@ -15,13 +16,65 @@ public class ClassPanel extends JPanel {
     private JTable subjectInstructorTable;
     private DefaultListModel<String> availableSubjectsModel;
     private DefaultListModel<String> assignedSubjectsModel;
+    private DefaultListModel<String> roomsListModel;
+    private Runnable saveCallback;
 
-    public ClassPanel(List<CourseClass> classes, List<Subject> subjects, List<Instructor> instructors) {
+    public ClassPanel(List<CourseClass> classes, List<Subject> subjects, List<Instructor> instructors, DefaultListModel<String> roomsListModel) {
         this.classes = classes;
         this.subjects = subjects;
         this.instructors = instructors;
+        this.roomsListModel = roomsListModel;
         setLayout(new BorderLayout(10, 10));
         initializeComponents();
+        setupKeyboardShortcuts();
+    }
+
+    public void setSaveCallback(Runnable saveCallback) {
+        this.saveCallback = saveCallback;
+    }
+
+    private void setupKeyboardShortcuts() {
+        // Get the input map and action map for the WHEN_IN_FOCUSED_WINDOW condition
+        InputMap inputMap = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = getActionMap();
+
+        // Create the key stroke (Command on Mac, Ctrl on Windows/Linux)
+        String shortcutKey = System.getProperty("os.name").toLowerCase().contains("mac") ? "meta S" : "control S";
+        KeyStroke saveKeyStroke = KeyStroke.getKeyStroke(shortcutKey);
+
+        // Map the key stroke to an action key
+        inputMap.put(saveKeyStroke, "saveData");
+
+        // Create and map the action
+        actionMap.put("saveData", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                saveData();
+            }
+        });
+    }
+
+    private void saveData() {
+        try {
+            if (saveCallback != null) {
+                saveCallback.run();
+                
+                // Show a popup message
+                JOptionPane.showMessageDialog(
+                    SwingUtilities.getWindowAncestor(this),
+                    "Data saved successfully!",
+                    "Save Confirmation",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                SwingUtilities.getWindowAncestor(this),
+                "Error saving data: " + e.getMessage(),
+                "Save Error",
+                JOptionPane.ERROR_MESSAGE
+            );
+        }
     }
 
     private void initializeComponents() {
@@ -138,9 +191,29 @@ public class ClassPanel extends JPanel {
                 if (semesterStr != null) {
                     int semester = Integer.parseInt(semesterStr);
                     if (semester >= 1 && semester <= 8) {
-                        CourseClass newClass = new CourseClass(UUID.randomUUID().toString(), name.trim(), semester);
-                        classes.add(newClass);
-                        classListModel.addElement(newClass.toString());
+                        // Create room selection dialog
+                        JPanel roomPanel = new JPanel(new GridLayout(2, 1));
+                        roomPanel.add(new JLabel("Select permanent classroom:"));
+                        JComboBox<String> roomCombo = new JComboBox<>();
+                        
+                        // Add only non-lab rooms
+                        for (int i = 0; i < roomsListModel.size(); i++) {
+                            String room = roomsListModel.getElementAt(i);
+                            if (!room.startsWith("L")) {
+                                roomCombo.addItem(room);
+                            }
+                        }
+                        roomPanel.add(roomCombo);
+                        
+                        int result = JOptionPane.showConfirmDialog(this, roomPanel,
+                            "Assign Permanent Room", JOptionPane.OK_CANCEL_OPTION);
+                            
+                        if (result == JOptionPane.OK_OPTION && roomCombo.getSelectedItem() != null) {
+                            CourseClass newClass = new CourseClass(UUID.randomUUID().toString(), name.trim(), semester);
+                            newClass.setPermanentRoom(roomCombo.getSelectedItem().toString());
+                            classes.add(newClass);
+                            classListModel.addElement(newClass.toString());
+                        }
                     } else {
                         JOptionPane.showMessageDialog(this, "Semester must be between 1 and 8");
                     }
@@ -163,10 +236,36 @@ public class ClassPanel extends JPanel {
                     if (semesterStr != null) {
                         int semester = Integer.parseInt(semesterStr);
                         if (semester >= 1 && semester <= 8) {
-                            CourseClass updatedClass = new CourseClass(selectedClass.getId(), name.trim(), semester);
-                            updatedClass.setSubjectToInstructorMap(selectedClass.getSubjectToInstructorMap());
-                            classes.set(selectedIndex, updatedClass);
-                            classListModel.set(selectedIndex, updatedClass.toString());
+                            // Create room selection dialog
+                            JPanel roomPanel = new JPanel(new GridLayout(2, 1));
+                            roomPanel.add(new JLabel("Select permanent classroom:"));
+                            JComboBox<String> roomCombo = new JComboBox<>();
+                            
+                            // Add only non-lab rooms
+                            for (int i = 0; i < roomsListModel.size(); i++) {
+                                String room = roomsListModel.getElementAt(i);
+                                if (!room.startsWith("L")) {
+                                    roomCombo.addItem(room);
+                                }
+                            }
+                            
+                            // Set current room as selected
+                            if (selectedClass.getPermanentRoom() != null) {
+                                roomCombo.setSelectedItem(selectedClass.getPermanentRoom());
+                            }
+                            
+                            roomPanel.add(roomCombo);
+                            
+                            int result = JOptionPane.showConfirmDialog(this, roomPanel,
+                                "Assign Permanent Room", JOptionPane.OK_CANCEL_OPTION);
+                                
+                            if (result == JOptionPane.OK_OPTION && roomCombo.getSelectedItem() != null) {
+                                CourseClass updatedClass = new CourseClass(selectedClass.getId(), name.trim(), semester);
+                                updatedClass.setPermanentRoom(roomCombo.getSelectedItem().toString());
+                                updatedClass.setSubjectToInstructorMap(selectedClass.getSubjectToInstructorMap());
+                                classes.set(selectedIndex, updatedClass);
+                                classListModel.set(selectedIndex, updatedClass.toString());
+                            }
                         } else {
                             JOptionPane.showMessageDialog(this, "Semester must be between 1 and 8");
                         }
@@ -202,7 +301,12 @@ public class ClassPanel extends JPanel {
                 } else {
                     String instructorId = selectedClass.getInstructorForSubject(subject.getId());
                     String instructorName = getInstructorName(instructorId);
-                    assignedSubjectsModel.addElement(subject.getName() + " (" + instructorName + ")");
+                    String roomInfo = "";
+                    if (subject.isLab()) {
+                        String labRoom = selectedClass.getLabRoomForSubject(subject.getId());
+                        roomInfo = labRoom != null ? " [" + labRoom + "]" : " [No Lab Room]";
+                    }
+                    assignedSubjectsModel.addElement(subject.getName() + " (" + instructorName + ")" + roomInfo);
                 }
             }
         }
@@ -215,8 +319,84 @@ public class ClassPanel extends JPanel {
                 CourseClass selectedClass = classes.get(selectedClassIndex);
                 Subject subject = findSubjectByName(subjectName);
                 if (subject != null) {
-                    selectedClass.assignInstructorToSubject(subject.getId(), null);
-                    updateSubjectLists();
+                    // Create instructor selection dialog
+                    JPanel assignPanel = new JPanel(new GridLayout(3, 1));
+                    assignPanel.add(new JLabel("Select instructor:"));
+                    JComboBox<String> instructorCombo = new JComboBox<>();
+                    
+                    // Add eligible instructors
+                    Set<String> eligibleInstructorIds = new HashSet<>(subject.getEligibleInstructors());
+                    
+                    // If this is a lab subject, prioritize the theory subject's instructor
+                    String preSelectedInstructorId = null;
+                    if (subject.isLab()) {
+                        String theorySubjectName = subject.getName().replace(" Lab", "");
+                        Subject theorySubject = findSubjectByName(theorySubjectName);
+                        if (theorySubject != null) {
+                            String theoryInstructorId = selectedClass.getInstructorForSubject(theorySubject.getId());
+                            if (theoryInstructorId != null && subject.getEligibleInstructors().contains(theoryInstructorId)) {
+                                preSelectedInstructorId = theoryInstructorId;
+                            }
+                            // Add theory subject's instructor to eligible list if they can teach the lab
+                            eligibleInstructorIds.addAll(theorySubject.getEligibleInstructors());
+                        }
+                    }
+                    
+                    // First add pre-selected instructor if exists
+                    if (preSelectedInstructorId != null) {
+                        for (Instructor instructor : instructors) {
+                            if (instructor.getId().equals(preSelectedInstructorId)) {
+                                instructorCombo.addItem(instructor.getName());
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Then add other eligible instructors
+                    for (Instructor instructor : instructors) {
+                        if (eligibleInstructorIds.contains(instructor.getId()) && 
+                            !instructor.getId().equals(preSelectedInstructorId)) {
+                            instructorCombo.addItem(instructor.getName());
+                        }
+                    }
+                    assignPanel.add(instructorCombo);
+                    
+                    if (subject.isLab()) {
+                        // Add lab room selection for lab subjects
+                        JPanel labRoomPanel = new JPanel(new GridLayout(2, 1));
+                        labRoomPanel.add(new JLabel("Select lab room:"));
+                        JComboBox<String> labRoomCombo = new JComboBox<>();
+                        
+                        // Add only lab rooms
+                        for (int i = 0; i < roomsListModel.size(); i++) {
+                            String room = roomsListModel.getElementAt(i);
+                            if (room.startsWith("L")) {
+                                labRoomCombo.addItem(room);
+                            }
+                        }
+                        assignPanel.add(labRoomPanel);
+                        assignPanel.add(labRoomCombo);
+                    }
+                    
+                    int result = JOptionPane.showConfirmDialog(this, assignPanel,
+                        "Assign Subject", JOptionPane.OK_CANCEL_OPTION);
+                        
+                    if (result == JOptionPane.OK_OPTION && instructorCombo.getSelectedItem() != null) {
+                        String instructorName = instructorCombo.getSelectedItem().toString();
+                        Instructor instructor = findInstructorByName(instructorName);
+                        
+                        if (instructor != null) {
+                            selectedClass.assignInstructorToSubject(subject.getId(), instructor.getId());
+                            
+                            if (subject.isLab()) {
+                                JComboBox<String> labRoomCombo = (JComboBox<String>) ((JPanel) assignPanel.getComponent(2)).getComponent(1);
+                                if (labRoomCombo.getSelectedItem() != null) {
+                                    selectedClass.assignLabRoomToSubject(subject.getId(), labRoomCombo.getSelectedItem().toString());
+                                }
+                            }
+                            updateSubjectLists();
+                        }
+                    }
                 }
             }
         }

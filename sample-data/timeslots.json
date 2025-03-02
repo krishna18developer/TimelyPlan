@@ -1,0 +1,41 @@
+[ {
+  "startTime" : "09:00",
+  "endTime" : "09:55",
+  "isBreak" : false,
+  "type" : "REGULAR"
+}, {
+  "startTime" : "09:55",
+  "endTime" : "10:50",
+  "isBreak" : false,
+  "type" : "REGULAR"
+}, {
+  "startTime" : "10:50",
+  "endTime" : "11:45",
+  "isBreak" : false,
+  "type" : "REGULAR"
+}, {
+  "startTime" : "11:45",
+  "endTime" : "12:40",
+  "isBreak" : false,
+  "type" : "REGULAR"
+}, {
+  "startTime" : "12:40",
+  "endTime" : "13:20",
+  "isBreak" : true,
+  "type" : "LUNCH"
+}, {
+  "startTime" : "13:20",
+  "endTime" : "14:15",
+  "isBreak" : false,
+  "type" : "REGULAR"
+}, {
+  "startTime" : "14:15",
+  "endTime" : "15:10",
+  "isBreak" : false,
+  "type" : "REGULAR"
+}, {
+  "startTime" : "15:10",
+  "endTime" : "16:05",
+  "isBreak" : false,
+  "type" : "REGULAR"
+} ]
